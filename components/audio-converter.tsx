@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -16,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileAudio, FileVideo, Loader2 } from "lucide-react";
+import { Upload, FileAudio, FileVideo, Loader2, Download } from "lucide-react";
 import { blobToBase64 } from "@/utils";
 
 export function AudioConverter() {
@@ -29,6 +28,14 @@ export function AudioConverter() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [apiKey, setApiKey] = useState(process.env.OPENAI_API_KEU);
+  const [fragmentedFiles, setFragmentedFiles] = useState([]);
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(transcription);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleVideoFileChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -115,62 +122,47 @@ export function AudioConverter() {
     handleAudioToText();
   };
 
-  import axios from "axios";
-
-  const downloadAudioInChunks = async (audioUrl, chunkSizeInMB = 15) => {
-    try {
-      // Obtener información del archivo
-      const response = await axios.head(audioUrl);
-      const totalSize = parseInt(response.headers["content-length"], 10);
-      const fileName = audioUrl.split("/").pop();
-
-      // Convertir 15 MB a bytes
-      const chunkSizeInBytes = chunkSizeInMB * 1024 * 1024;
-
-      // Preparar arreglo para almacenar chunks
-      const chunks = [];
-
-      // Descargar chunks
-      for (let start = 0; start < totalSize; start += chunkSizeInBytes) {
-        const end = Math.min(start + chunkSizeInBytes - 1, totalSize - 1);
-
-        const chunkResponse = await axios.get(audioUrl, {
-          responseType: "arraybuffer",
-          headers: {
-            Range: `bytes=${start}-${end}`,
-          },
-        });
-
-        chunks.push(chunkResponse.data);
-      }
-
-      // Concatenar chunks
-      const combinedChunks = new Uint8Array(totalSize);
-      let offset = 0;
-      for (const chunk of chunks) {
-        combinedChunks.set(new Uint8Array(chunk), offset);
-        offset += chunk.byteLength;
-      }
-
-      // Crear blob para descarga
-      const blob = new Blob([combinedChunks], { type: "audio/wav" });
-
-      // Crear enlace de descarga
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = fileName;
-
-      // Disparar descarga
-      document.body.appendChild(link);
-      link.click();
-
-      // Limpiar
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-    } catch (error) {
-      console.error("Error al descargar el audio:", error);
-      // Manejar el error (por ejemplo, mostrar un mensaje al usuario)
+  const fragmentFile = async () => {
+    if (!audioFile) {
+      setError("Por favor, seleccione un archivo de audio primero.");
+      return;
     }
+
+    const fragmentSize = 15 * 1024 * 1024; // 15 MB
+    const fileBuffer = await audioFile.arrayBuffer();
+    const fragments = [];
+
+    setIsConverting(true);
+
+    for (let i = 0; i < fileBuffer.byteLength; i += fragmentSize) {
+      const fragmentBlob = new Blob([fileBuffer.slice(i, i + fragmentSize)], {
+        type: audioFile.type,
+      });
+      const fragmentName = `${audioFile.name.replace(
+        /\.[^/.]+$/,
+        ""
+      )}_fragment_${fragments.length + 1}.${audioFile.name.split(".").pop()}`;
+
+      fragments.push(
+        new File([fragmentBlob], fragmentName, { type: audioFile.type })
+      );
+      setProgress(Math.floor((i / fileBuffer.byteLength) * 100));
+    }
+
+    setFragmentedFiles(fragments);
+    setIsConverting(false);
+    setProgress(100);
+  };
+
+  const downloadFragment = (fragment) => {
+    const url = URL.createObjectURL(fragment);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fragment.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -181,8 +173,9 @@ export function AudioConverter() {
         </h1>
 
         <Tabs defaultValue="video-to-audio" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="video-to-audio">Video a Audio</TabsTrigger>
+            <TabsTrigger value="audio-fragments">Fragmentar Audio</TabsTrigger>
             <TabsTrigger value="audio-to-text">Audio a Texto</TabsTrigger>
           </TabsList>
 
@@ -242,13 +235,6 @@ export function AudioConverter() {
                   <source src={audioUrl} type="audio/wav" />
                   Su navegador no soporta el elemento de audio.
                 </audio>
-                <div>Download audio in chunks</div>
-                <Button
-                  onClick={() => downloadAudioInChunks(audioUrl)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Descargar Audio
-                </Button>
               </div>
             )}
           </TabsContent>
@@ -307,12 +293,100 @@ export function AudioConverter() {
               </Alert>
             )}
 
-            <Textarea
-              placeholder="La transcripción aparecerá aquí..."
-              value={transcription}
-              readOnly
-              className="h-64 bg-gray-800 text-gray-100 border-gray-700"
-            />
+            <div className="relative">
+              <textarea
+                placeholder="La transcripción aparecerá aquí..."
+                value={transcription}
+                readOnly
+                className="h-64 w-full bg-gray-800 text-gray-100 border-gray-700 p-4"
+              />
+              <button
+                onClick={copyToClipboard}
+                className="absolute top-4 right-4 bg-gray-700 text-gray-100 p-2 rounded hover:bg-gray-600"
+                title="Copiar al portapapeles"
+              >
+                Copiar
+              </button>
+              {copied && (
+                <span className="text-green-500 absolute top-16 right-4">
+                  ¡Copiado!
+                </span>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="audio-fragments" className="space-y-4">
+            <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleAudioFileChange}
+                className="hidden"
+                id="audio-fragment-upload"
+              />
+              <label
+                htmlFor="audio-fragment-upload"
+                className="cursor-pointer flex flex-col items-center justify-center"
+              >
+                <Upload className="w-12 h-12 mb-4 text-gray-400" />
+                <span className="text-lg mb-2">
+                  {audioFile ? audioFile.name : "Haga clic para subir un audio"}
+                </span>
+                <span className="text-sm text-gray-500">
+                  Formatos soportados: wav, MP3, M4A
+                </span>
+              </label>
+            </div>
+
+            {audioFile && (
+              <div className="flex items-center justify-center space-x-2 text-gray-400">
+                <FileAudio className="w-5 h-5" />
+                <span>{audioFile.name}</span>
+              </div>
+            )}
+
+            <Button
+              onClick={fragmentFile}
+              disabled={!audioFile || isConverting}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isConverting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Fragmentando...
+                </>
+              ) : (
+                "Fragmentar Audio"
+              )}
+            </Button>
+
+            {isConverting && <Progress value={progress} className="w-full" />}
+
+            {fragmentedFiles.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold mb-2">
+                  Fragmentos generados:
+                </h3>
+                <div className="space-y-2">
+                  {fragmentedFiles.map((fragment, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center bg-gray-800 p-2 rounded"
+                    >
+                      <span>{fragment.name}</span>
+                      <Button
+                        size="sm"
+                        onClick={() => downloadFragment(fragment)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Descargar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
