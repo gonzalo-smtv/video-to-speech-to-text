@@ -1,5 +1,5 @@
-import { AudioConverter } from "@/components/audio-converter";
+import { AudioConverter } from '@/components/audio-converter'
 
 export default function Page() {
-  return <AudioConverter />;
+  return <AudioConverter />
 }

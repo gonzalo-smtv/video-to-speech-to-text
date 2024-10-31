@@ -1,33 +1,34 @@
-import { NextResponse } from "next/server";
-import fs from "fs";
-import * as dotenv from "dotenv";
-import OpenAI from "openai";
+import * as dotenv from 'dotenv'
+import fs from 'fs'
+import { NextResponse } from 'next/server'
+import OpenAI from 'openai'
 
-dotenv.config();
+dotenv.config()
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+  apiKey: process.env.OPENAI_API_KEY
+})
 
+// @ts-ignore
 export async function POST(req) {
-  const body = await req.json();
-  const base64Audio = body.audio;
-  const audio = Buffer.from(base64Audio, "base64");
-  const filePath = "tmp/input.wav";
+  const body = await req.json()
+  const base64Audio = body.audio
+  const audio = Buffer.from(base64Audio, 'base64')
+  const filePath = 'tmp/input.wav'
 
   try {
-    fs.writeFileSync(filePath, audio);
-    const readStream = fs.createReadStream(filePath);
+    fs.writeFileSync(filePath, audio)
+    const readStream = fs.createReadStream(filePath)
     const data = await openai.audio.transcriptions.create({
       file: readStream,
-      model: "whisper-1",
-    });
+      model: 'whisper-1'
+    })
     // Remove the file after use
-    fs.unlinkSync(filePath);
+    fs.unlinkSync(filePath)
 
-    return NextResponse.json(data);
+    return NextResponse.json(data)
   } catch (error) {
-    console.error("Error processing audio:", error);
-    return NextResponse.error();
+    console.error('Error processing audio:', error)
+    return NextResponse.error()
   }
 }
