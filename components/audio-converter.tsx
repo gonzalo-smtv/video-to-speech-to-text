@@ -38,10 +38,12 @@ export function AudioConverter() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentFragment, setCurrentFragment] = useState(0);
 
+  // @ts-ignore
   const blobToBase64 = (blob) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
+        // @ts-ignore
         const base64String = reader.result.split(",")[1];
         resolve(base64String);
       };
@@ -50,6 +52,7 @@ export function AudioConverter() {
     });
   };
 
+  // @ts-ignore
   const fetchAudioFromUrl = async (url) => {
     const response = await fetch(url);
     const blob = await response.blob();
@@ -67,6 +70,7 @@ export function AudioConverter() {
         const fragment = fragments[i];
 
         // Obtener el blob desde la URL del fragmento
+        // @ts-ignore
         const audioBlob = await fetchAudioFromUrl(fragment.url);
 
         // Convertir a base64
