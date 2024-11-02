@@ -249,23 +249,6 @@ export function AudioConverter() {
 
         {fragments.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Fragmentos de audio:</h3>
-            <ul className="space-y-2">
-              {fragments.map((fragment, index) => (
-                <li key={index}>
-                  <a
-                    // @ts-ignore
-                    href={fragment.url}
-                    // @ts-ignore
-                    download={fragment.fileName}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {/* @ts-ignore */}
-                    {fragment.fileName}
-                  </a>
-                </li>
-              ))}
-            </ul>
             <div className="mt-4">
               <button
                 onClick={processFragments}
@@ -283,6 +266,23 @@ export function AudioConverter() {
                 </div>
               )}
             </div>
+            <h3 className="text-lg font-semibold">Fragmentos de audio:</h3>
+            <ul className="space-y-2">
+              {fragments.map((fragment, index) => (
+                <li key={index}>
+                  <a
+                    // @ts-ignore
+                    href={fragment.url}
+                    // @ts-ignore
+                    download={fragment.fileName}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {/* @ts-ignore */}
+                    {fragment.fileName}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
