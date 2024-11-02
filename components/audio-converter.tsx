@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { blobToBase64 } from "@/utils";
+import VideoToMp3Converter from "./VideoToMp3Converter";
 
 export function AudioConverter() {
   const [videoFile, setVideoFile] = useState(null);
@@ -226,12 +227,12 @@ export function AudioConverter() {
 
         <Tabs defaultValue="video-to-audio" value={tabValue} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger
+            {/* <TabsTrigger
               value="video-to-audio"
               onClick={() => setTabValue("video-to-audio")}
             >
               Video a Audio
-            </TabsTrigger>
+            </TabsTrigger> */}
             <TabsTrigger
               value="audio-fragments"
               onClick={() => setTabValue("audio-fragments")}
@@ -426,77 +427,7 @@ export function AudioConverter() {
           </TabsContent>
 
           <TabsContent value="audio-fragments" className="space-y-4">
-            <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleAudioFileChange}
-                className="hidden"
-                id="audio-fragment-upload"
-              />
-              <label
-                htmlFor="audio-fragment-upload"
-                className="cursor-pointer flex flex-col items-center justify-center"
-              >
-                <Upload className="w-12 h-12 mb-4 text-gray-400" />
-                <span className="text-lg mb-2">
-                  {/* @ts-ignore */}
-                  {audioFile ? audioFile.name : "Haga clic para subir un audio"}
-                </span>
-              </label>
-            </div>
-
-            {audioFile && (
-              <div className="flex items-center justify-center space-x-2 text-gray-400">
-                <FileAudio className="w-5 h-5" />
-                {/* @ts-ignore */}
-                <span>{audioFile.name}</span>
-              </div>
-            )}
-
-            <Button
-              onClick={fragmentFile}
-              disabled={!audioFile || isConverting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isConverting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Fragmentando...
-                </>
-              ) : (
-                "Fragmentar Audio"
-              )}
-            </Button>
-
-            {isConverting && <Progress value={progress} className="w-full" />}
-
-            {fragmentedFiles.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">
-                  Fragmentos generados:
-                </h3>
-                <div className="space-y-2">
-                  {fragmentedFiles.map((fragment, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center bg-gray-800 p-2 rounded"
-                    >
-                      {/* @ts-ignore */}
-                      <span>{fragment.name}</span>
-                      <Button
-                        size="sm"
-                        onClick={() => downloadFragment(fragment)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Descargar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <VideoToMp3Converter />
           </TabsContent>
         </Tabs>
       </div>

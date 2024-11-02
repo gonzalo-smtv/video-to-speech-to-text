@@ -19,7 +19,7 @@ const VideoToMp3Converter = () => {
       const ffmpeg = ffmpegRef.current;
       ffmpeg.on("log", ({ message }) => {
         messageRef.current.innerHTML = message;
-        // console.log(message);
+        console.log(message);
       });
       ffmpeg.on("progress", ({ progress }) => {
         setProgress((progress * 100).toFixed(0));
@@ -42,7 +42,6 @@ const VideoToMp3Converter = () => {
       setError("Error al inicializar FFmpeg: " + err.message);
     }
   };
-  console.log("%c fragments: ", "color: orange", fragments);
 
   // Manejar la selección de archivo
   const handleFileSelect = async (event) => {
