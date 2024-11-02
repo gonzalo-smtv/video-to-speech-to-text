@@ -30,29 +30,64 @@ export function AudioConverter() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [apiKey, setApiKey] = useState(process.env.OPENAI_API_KEU);
-  const [fragmentedFiles, setFragmentedFiles] = useState([]);
+
   const [copied, setCopied] = useState(false);
   const [tabValue, setTabValue] = useState("video-to-audio");
+  const [fragments, setFragments] = useState([]);
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentFragment, setCurrentFragment] = useState(0);
+
+  const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result.split(",")[1];
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const fetchAudioFromUrl = async (url) => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return blob;
+  };
+
+  const processFragments = async () => {
+    if (!fragments.length) return;
+
+    setIsProcessing(true);
+
+    try {
+      for (let i = 0; i < fragments.length; i++) {
+        setCurrentFragment(i + 1);
+        const fragment = fragments[i];
+
+        // Obtener el blob desde la URL del fragmento
+        const audioBlob = await fetchAudioFromUrl(fragment.url);
+
+        // Convertir a base64
+        const base64Data = await blobToBase64(audioBlob);
+
+        // Procesar el fragmento
+        await getText(base64Data);
+      }
+    } catch (error) {
+      console.error("Error processing fragments:", error);
+    } finally {
+      setIsProcessing(false);
+      setCurrentFragment(0);
+    }
+  };
 
   // @ts-ignore
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleVideoFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile && selectedFile.type.startsWith("video/")) {
-      // @ts-ignore
-      setVideoFile(selectedFile);
-      setError(null);
-    } else {
-      // @ts-ignore
-      setError("Por favor, seleccione un archivo de video válido.");
-    }
   };
 
   // @ts-ignore
@@ -67,54 +102,12 @@ export function AudioConverter() {
     }
   };
 
-  const handleVideoToAudio = async () => {
-    if (!videoFile) return;
-
-    setIsConverting(true);
-    setProgress(0);
-
-    try {
-      // Simulate video to audio conversion
-      for (let i = 0; i <= 100; i += 10) {
-        setProgress(i);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-
-      // In a real implementation, you would convert the video to audio here
-      setAudioUrl(
-        URL.createObjectURL(new Blob([videoFile], { type: "audio/mp3" }))
-      );
-      setAudioFile(
-        // @ts-ignore
-        new File([videoFile], videoFile.name.replace(/\.[^/.]+$/, ".mp3"), {
-          type: "audio/mp3",
-        })
-      );
-
-      setTabValue("audio-fragments");
-
-      // @ts-expect
-    } catch (err) {
-      // @ts-ignore
-      setError("Error al convertir el video a audio.");
-    } finally {
-      setIsConverting(false);
-    }
-  };
-
-  useEffect(() => {
-    if (tabValue === "audio-fragments" && audioFile) {
-      fragmentFile();
-    }
-  }, [tabValue]);
-
   // @ts-ignore
   const getText = async (base64data) => {
-    setTranscription([]);
     console.log("CONVERTING");
     setIsConverting(true);
     try {
-      const response = await fetch("/api/speechToText", {
+      const resp = await fetch("/api/speechToText", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -122,7 +115,9 @@ export function AudioConverter() {
         body: JSON.stringify({
           audio: base64data,
         }),
-      }).then((res) => res.json());
+      });
+      console.log("resp: ", resp);
+      const response = await resp.json();
       console.log("response: ", response);
       const { text } = response;
       // @ts-ignore
@@ -134,7 +129,12 @@ export function AudioConverter() {
     }
   };
 
+  useEffect(() => {
+    console.log("transcription: ", transcription);
+  }, [transcription]);
+
   const handleAudioToText = async () => {
+    setTranscription([]);
     // @ts-ignore
     console.log("audioFile: ", audioFile);
     // @ts-ignore
@@ -145,80 +145,11 @@ export function AudioConverter() {
     await getText(blob);
   };
 
-  const handleFragmentToText = async () => {
-    console.log("FRAGMENT TO TEXT");
-    for (let i = 0; i < fragmentedFiles.length; i++) {
-      try {
-        const fragment = fragmentedFiles[i];
-        console.log("fragment: ", fragment);
-        const fragmentBlob = new Blob([fragment], { type: "audio/mp3" });
-        console.log("%c fragmentBlob: ", "color: orange", fragmentBlob);
-        const blob = await blobToBase64(fragmentBlob);
-        await getText(blob);
-      } catch (error) {
-        console.log(error);
-      }
-      console.log("FINISH: ", i);
-    }
-  };
-
   // @ts-ignore
   const handleApiKeySubmit = (event) => {
     event.preventDefault();
     setIsModalOpen(false);
     handleAudioToText();
-  };
-
-  const fragmentFile = async () => {
-    setTranscription([]);
-    setProgress(0);
-    setFragmentedFiles([]);
-    if (!audioFile) {
-      // @ts-ignore
-      setError("Por favor, seleccione un archivo de audio primero.");
-      return;
-    }
-
-    const fragmentSize = 15 * 1024 * 1024; // 15 MB
-    // @ts-ignore
-    const fileBuffer = await audioFile.arrayBuffer();
-    const fragments = [];
-
-    setIsConverting(true);
-
-    for (let i = 0; i < fileBuffer.byteLength; i += fragmentSize) {
-      const fragmentBlob = new Blob([fileBuffer.slice(i, i + fragmentSize)], {
-        // @ts-ignore
-        type: audioFile.type,
-      });
-      // @ts-ignore
-      const fragmentName = `${audioFile.name.replace(
-        /\.[^/.]+$/,
-        ""
-        // @ts-ignore
-      )}_fragment_${fragments.length + 1}.${audioFile.name.split(".").pop()}`;
-
-      fragments.push(
-        // @ts-ignore
-        new File([fragmentBlob], fragmentName, { type: audioFile.type })
-      );
-      setProgress(Math.floor((i / fileBuffer.byteLength) * 100));
-    }
-    // @ts-ignore
-    setFragmentedFiles(fragments);
-    setIsConverting(false);
-    setProgress(100);
-  };
-  // @ts-ignore
-  const downloadFragment = (fragment) => {
-    const url = URL.createObjectURL(fragment);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fragment.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -230,12 +161,6 @@ export function AudioConverter() {
 
         <Tabs defaultValue="video-to-audio" value={tabValue} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            {/* <TabsTrigger
-              value="video-to-audio"
-              onClick={() => setTabValue("video-to-audio")}
-            >
-              Video a Audio
-            </TabsTrigger> */}
             <TabsTrigger
               value="audio-fragments"
               onClick={() => setTabValue("audio-fragments")}
@@ -255,68 +180,6 @@ export function AudioConverter() {
               Audio a Texto
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="video-to-audio" className="space-y-4">
-            <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={handleVideoFileChange}
-                className="hidden"
-                id="video-upload"
-              />
-              <label
-                htmlFor="video-upload"
-                className="cursor-pointer flex flex-col items-center justify-center"
-              >
-                <Upload className="w-12 h-12 mb-4 text-gray-400" />
-                <span className="text-lg mb-2">
-                  {/* @ts-ignore */}
-                  {videoFile ? videoFile.name : "Haga clic para subir un video"}
-                </span>
-                <span className="text-sm text-gray-500">
-                  Formatos soportados: MP4, MOV, AVI
-                </span>
-              </label>
-            </div>
-
-            {videoFile && (
-              <div className="flex items-center justify-center space-x-2 text-gray-400">
-                <FileVideo className="w-5 h-5" />
-                {/* @ts-ignore */}
-                <span>{videoFile.name}</span>
-              </div>
-            )}
-
-            <Button
-              onClick={handleVideoToAudio}
-              disabled={!videoFile || isConverting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isConverting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Convirtiendo...
-                </>
-              ) : (
-                "Convertir Video a Audio"
-              )}
-            </Button>
-
-            {isConverting && <Progress value={progress} className="w-full" />}
-
-            {audioUrl && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">
-                  Audio Convertido:
-                </h3>
-                <audio controls className="w-full">
-                  <source src={audioUrl} type="audio/mp3" />
-                  Su navegador no soporta el elemento de audio.
-                </audio>
-              </div>
-            )}
-          </TabsContent>
 
           <TabsContent value="audio-to-text" className="space-y-4">
             <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
@@ -374,30 +237,6 @@ export function AudioConverter() {
               </Alert>
             )}
 
-            {fragmentedFiles.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">
-                  Fragmentos generados: {fragmentedFiles.length}
-                </h3>
-                <h5 className="mt-10 text-lg font-semibold mb-2">
-                  Deseas convertir los fragmentos a texto?
-                </h5>
-                <Button
-                  onClick={handleFragmentToText}
-                  disabled={!audioFile || isConverting}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {isConverting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Transcribiendo...
-                    </>
-                  ) : (
-                    "Convertir fragmentos a Texto"
-                  )}
-                </Button>
-              </div>
-            )}
             {transcription.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-lg font-semibold mb-2">Transcripción:</h3>
@@ -406,7 +245,7 @@ export function AudioConverter() {
                     <div className="relative" key={index}>
                       <textarea
                         placeholder="La transcripción aparecerá aquí..."
-                        value={transcription}
+                        value={text}
                         readOnly
                         className="h-64 w-full bg-gray-800 text-gray-100 border-gray-700 p-4"
                       />
@@ -430,9 +269,48 @@ export function AudioConverter() {
           </TabsContent>
 
           <TabsContent value="audio-fragments" className="space-y-4">
-            <VideoToMp3Converter />
+            <VideoToMp3Converter setFragments={setFragments} />
           </TabsContent>
         </Tabs>
+
+        {fragments.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">Fragmentos de audio:</h3>
+            <ul className="space-y-2">
+              {fragments.map((fragment, index) => (
+                <li key={index}>
+                  <a
+                    // @ts-ignore
+                    href={fragment.url}
+                    // @ts-ignore
+                    download={fragment.fileName}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {/* @ts-ignore */}
+                    {fragment.fileName}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4">
+              <button
+                onClick={processFragments}
+                disabled={isProcessing || !fragments.length}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+              >
+                {isProcessing
+                  ? `Procesando fragmento ${currentFragment} de ${fragments.length}...`
+                  : "Procesar fragmentos"}
+              </button>
+
+              {fragments.length > 0 && (
+                <div className="mt-2 text-sm text-gray-600">
+                  {fragments.length} fragmentos disponibles para procesar
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

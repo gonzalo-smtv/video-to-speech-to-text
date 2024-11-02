@@ -3,11 +3,11 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
 import { useState, useRef, useEffect } from "react";
 
-const VideoToMp3Converter = () => {
+// @ts-ignore
+const VideoToMp3Converter = ({ setFragments }) => {
   const [isConverting, setIsConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
-  const [fragments, setFragments] = useState([]);
 
   const [loaded, setLoaded] = useState(false);
   const ffmpegRef = useRef(new FFmpeg());
@@ -19,11 +19,8 @@ const VideoToMp3Converter = () => {
       const ffmpeg = ffmpegRef.current;
       ffmpeg.on("log", ({ message }) => {
         // @ts-ignore
-        if (messageRef?.current?.innerHTML) {
-          // @ts-ignore
-          messageRef.current.innerHTML = message;
-          console.log(message);
-        }
+        messageRef.current.innerHTML = message;
+        console.log(message);
       });
       ffmpeg.on("progress", ({ progress }) => {
         // @ts-ignore
@@ -159,28 +156,6 @@ const VideoToMp3Converter = () => {
               Progreso: {progress}%
             </p>
             <p ref={messageRef}></p>
-          </div>
-        )}
-
-        {fragments.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Fragmentos de audio:</h3>
-            <ul className="space-y-2">
-              {fragments.map((fragment, index) => (
-                <li key={index}>
-                  <a
-                    // @ts-ignore
-                    href={fragment.url}
-                    // @ts-ignore
-                    download={fragment.fileName}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {/* @ts-ignore */}
-                    {fragment.fileName}
-                  </a>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
       </div>
