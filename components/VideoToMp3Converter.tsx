@@ -77,7 +77,7 @@ const VideoToMp3Converter = ({ setFragments }) => {
         "-f",
         "segment",
         "-segment_time",
-        "150",
+        "50",
         "-q:a",
         "0",
         "-map",
