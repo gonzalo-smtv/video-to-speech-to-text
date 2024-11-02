@@ -236,36 +236,6 @@ export function AudioConverter() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
-            {transcription.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">Transcripción:</h3>
-                <div className="space-y-2">
-                  {transcription.map((text, index) => (
-                    <div className="relative" key={index}>
-                      <textarea
-                        placeholder="La transcripción aparecerá aquí..."
-                        value={text}
-                        readOnly
-                        className="h-64 w-full bg-gray-800 text-gray-100 border-gray-700 p-4"
-                      />
-                      <button
-                        onClick={() => copyToClipboard(text)}
-                        className="absolute top-4 right-4 bg-gray-700 text-gray-100 p-2 rounded hover:bg-gray-600"
-                        title="Copiar al portapapeles"
-                      >
-                        Copiar
-                      </button>
-                      {copied && (
-                        <span className="text-green-500 absolute top-16 right-4">
-                          ¡Copiado!
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </TabsContent>
 
           <TabsContent value="audio-fragments" className="space-y-4">
@@ -308,6 +278,36 @@ export function AudioConverter() {
                   {fragments.length} fragmentos disponibles para procesar
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {transcription.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold mb-2">Transcripción:</h3>
+            <div className="space-y-2">
+              {transcription.map((text, index) => (
+                <div className="relative" key={index}>
+                  <textarea
+                    placeholder="La transcripción aparecerá aquí..."
+                    value={text}
+                    readOnly
+                    className="h-64 w-full bg-gray-800 text-gray-100 border-gray-700 p-4"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(text)}
+                    className="absolute top-4 right-4 bg-gray-700 text-gray-100 p-2 rounded hover:bg-gray-600"
+                    title="Copiar al portapapeles"
+                  >
+                    Copiar
+                  </button>
+                  {copied && (
+                    <span className="text-green-500 absolute top-16 right-4">
+                      ¡Copiado!
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
