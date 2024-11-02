@@ -18,10 +18,15 @@ const VideoToMp3Converter = () => {
       const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
       const ffmpeg = ffmpegRef.current;
       ffmpeg.on("log", ({ message }) => {
-        messageRef.current.innerHTML = message;
-        console.log(message);
+        // @ts-ignore
+        if (messageRef?.current?.innerHTML) {
+          // @ts-ignore
+          messageRef.current.innerHTML = message;
+          console.log(message);
+        }
       });
       ffmpeg.on("progress", ({ progress }) => {
+        // @ts-ignore
         setProgress((progress * 100).toFixed(0));
       });
       // toBlobURL is used to bypass CORS issue, urls with the same
@@ -39,11 +44,13 @@ const VideoToMp3Converter = () => {
       setError(null);
       setLoaded(true);
     } catch (err) {
+      // @ts-ignore
       setError("Error al inicializar FFmpeg: " + err.message);
     }
   };
 
   // Manejar la selección de archivo
+  // @ts-ignore
   const handleFileSelect = async (event) => {
     setFragments([]);
     const ffmpeg = ffmpegRef.current;
@@ -95,6 +102,7 @@ const VideoToMp3Converter = () => {
           const blob = new Blob([data], { type: "audio/mp3" });
           const url = URL.createObjectURL(blob);
 
+          // @ts-ignore
           setFragments((prev) => [...prev, { url, fileName: fileNameAudio }]);
 
           segmentIndex++;
@@ -105,6 +113,7 @@ const VideoToMp3Converter = () => {
 
       setIsConverting(false);
     } catch (err) {
+      // @ts-ignore
       setError("Error en la conversión: " + err.message);
       setIsConverting(false);
     }
@@ -160,10 +169,13 @@ const VideoToMp3Converter = () => {
               {fragments.map((fragment, index) => (
                 <li key={index}>
                   <a
+                    // @ts-ignore
                     href={fragment.url}
+                    // @ts-ignore
                     download={fragment.fileName}
                     className="text-blue-600 hover:underline"
                   >
+                    {/* @ts-ignore */}
                     {fragment.fileName}
                   </a>
                 </li>

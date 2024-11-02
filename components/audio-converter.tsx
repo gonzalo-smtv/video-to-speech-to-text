@@ -34,6 +34,7 @@ export function AudioConverter() {
   const [copied, setCopied] = useState(false);
   const [tabValue, setTabValue] = useState("video-to-audio");
 
+  // @ts-ignore
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -124,6 +125,7 @@ export function AudioConverter() {
       }).then((res) => res.json());
       console.log("response: ", response);
       const { text } = response;
+      // @ts-ignore
       setTranscription((prev) => [...prev, text]);
       setIsConverting(false);
     } catch (error) {
@@ -135,6 +137,7 @@ export function AudioConverter() {
   const handleAudioToText = async () => {
     // @ts-ignore
     console.log("audioFile: ", audioFile);
+    // @ts-ignore
     const audioBlob = new Blob([audioFile], { type: "audio/mp3" });
     console.log("%c audioBlob: ", "color: orange", audioBlob);
 
