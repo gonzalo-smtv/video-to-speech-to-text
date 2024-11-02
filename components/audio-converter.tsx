@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, FileAudio, FileVideo, Loader2, Upload } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export function AudioConverter() {
   const [videoFile, setVideoFile] = useState(null);
   const [audioFile, setAudioFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [transcription, setTranscription] = useState("");
+  const [transcription, setTranscription] = useState([]);
   const [isConverting, setIsConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
@@ -31,9 +31,10 @@ export function AudioConverter() {
   const [apiKey, setApiKey] = useState(process.env.OPENAI_API_KEU);
   const [fragmentedFiles, setFragmentedFiles] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [tabValue, setTabValue] = useState("video-to-audio");
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(transcription);
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -79,14 +80,17 @@ export function AudioConverter() {
 
       // In a real implementation, you would convert the video to audio here
       setAudioUrl(
-        URL.createObjectURL(new Blob([videoFile], { type: "audio/wav" }))
+        URL.createObjectURL(new Blob([videoFile], { type: "audio/mp3" }))
       );
       setAudioFile(
         // @ts-ignore
-        new File([videoFile], videoFile.name.replace(/\.[^/.]+$/, ".wav"), {
-          type: "audio/wav",
+        new File([videoFile], videoFile.name.replace(/\.[^/.]+$/, ".mp3"), {
+          type: "audio/mp3",
         })
       );
+
+      setTabValue("audio-fragments");
+
       // @ts-expect
     } catch (err) {
       // @ts-ignore
@@ -96,8 +100,15 @@ export function AudioConverter() {
     }
   };
 
+  useEffect(() => {
+    if (tabValue === "audio-fragments" && audioFile) {
+      fragmentFile();
+    }
+  }, [tabValue]);
+
   // @ts-ignore
   const getText = async (base64data) => {
+    setTranscription([]);
     console.log("CONVERTING");
     setIsConverting(true);
     try {
@@ -112,7 +123,7 @@ export function AudioConverter() {
       }).then((res) => res.json());
       console.log("response: ", response);
       const { text } = response;
-      setTranscription(text);
+      setTranscription((prev) => [...prev, text]);
       setIsConverting(false);
     } catch (error) {
       setIsConverting(false);
@@ -122,8 +133,29 @@ export function AudioConverter() {
 
   const handleAudioToText = async () => {
     // @ts-ignore
-    const audioBlob = new Blob([audioFile], { type: "audio/wav" });
-    blobToBase64(audioBlob, getText);
+    console.log("audioFile: ", audioFile);
+    const audioBlob = new Blob([audioFile], { type: "audio/mp3" });
+    console.log("%c audioBlob: ", "color: orange", audioBlob);
+
+    const blob = await blobToBase64(audioBlob);
+    await getText(blob);
+  };
+
+  const handleFragmentToText = async () => {
+    console.log("FRAGMENT TO TEXT");
+    for (let i = 0; i < fragmentedFiles.length; i++) {
+      try {
+        const fragment = fragmentedFiles[i];
+        console.log("fragment: ", fragment);
+        const fragmentBlob = new Blob([fragment], { type: "audio/mp3" });
+        console.log("%c fragmentBlob: ", "color: orange", fragmentBlob);
+        const blob = await blobToBase64(fragmentBlob);
+        await getText(blob);
+      } catch (error) {
+        console.log(error);
+      }
+      console.log("FINISH: ", i);
+    }
   };
 
   // @ts-ignore
@@ -134,6 +166,9 @@ export function AudioConverter() {
   };
 
   const fragmentFile = async () => {
+    setTranscription([]);
+    setProgress(0);
+    setFragmentedFiles([]);
     if (!audioFile) {
       // @ts-ignore
       setError("Por favor, seleccione un archivo de audio primero.");
@@ -189,11 +224,32 @@ export function AudioConverter() {
           Conversor de Audio y Video
         </h1>
 
-        <Tabs defaultValue="video-to-audio" className="w-full">
+        <Tabs defaultValue="video-to-audio" value={tabValue} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="video-to-audio">Video a Audio</TabsTrigger>
-            <TabsTrigger value="audio-fragments">Fragmentar Audio</TabsTrigger>
-            <TabsTrigger value="audio-to-text">Audio a Texto</TabsTrigger>
+            <TabsTrigger
+              value="video-to-audio"
+              onClick={() => setTabValue("video-to-audio")}
+            >
+              Video a Audio
+            </TabsTrigger>
+            <TabsTrigger
+              value="audio-fragments"
+              onClick={() => setTabValue("audio-fragments")}
+            >
+              Fragmentar Audio
+            </TabsTrigger>
+            <TabsTrigger
+              value="audio-to-text"
+              onClick={() => {
+                // if (!apiKey) {
+                //   setIsModalOpen(true);
+                // } else {
+                setTabValue("audio-to-text");
+                // }
+              }}
+            >
+              Audio a Texto
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="video-to-audio" className="space-y-4">
@@ -251,7 +307,7 @@ export function AudioConverter() {
                   Audio Convertido:
                 </h3>
                 <audio controls className="w-full">
-                  <source src={audioUrl} type="audio/wav" />
+                  <source src={audioUrl} type="audio/mp3" />
                   Su navegador no soporta el elemento de audio.
                 </audio>
               </div>
@@ -277,7 +333,7 @@ export function AudioConverter() {
                   {audioFile ? audioFile.name : "Haga clic para subir un audio"}
                 </span>
                 <span className="text-sm text-gray-500">
-                  Formatos soportados: wav, wav, M4A
+                  Formatos soportados: mp3, mp3, M4A
                 </span>
               </label>
             </div>
@@ -314,26 +370,59 @@ export function AudioConverter() {
               </Alert>
             )}
 
-            <div className="relative">
-              <textarea
-                placeholder="La transcripción aparecerá aquí..."
-                value={transcription}
-                readOnly
-                className="h-64 w-full bg-gray-800 text-gray-100 border-gray-700 p-4"
-              />
-              <button
-                onClick={copyToClipboard}
-                className="absolute top-4 right-4 bg-gray-700 text-gray-100 p-2 rounded hover:bg-gray-600"
-                title="Copiar al portapapeles"
-              >
-                Copiar
-              </button>
-              {copied && (
-                <span className="text-green-500 absolute top-16 right-4">
-                  ¡Copiado!
-                </span>
-              )}
-            </div>
+            {fragmentedFiles.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold mb-2">
+                  Fragmentos generados: {fragmentedFiles.length}
+                </h3>
+                <h5 className="mt-10 text-lg font-semibold mb-2">
+                  Deseas convertir los fragmentos a texto?
+                </h5>
+                <Button
+                  onClick={handleFragmentToText}
+                  disabled={!audioFile || isConverting}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isConverting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Transcribiendo...
+                    </>
+                  ) : (
+                    "Convertir fragmentos a Texto"
+                  )}
+                </Button>
+              </div>
+            )}
+            {transcription.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold mb-2">Transcripción:</h3>
+                <div className="space-y-2">
+                  {transcription.map((text, index) => (
+                    <div className="relative" key={index}>
+                      <textarea
+                        placeholder="La transcripción aparecerá aquí..."
+                        value={transcription}
+                        readOnly
+                        className="h-64 w-full bg-gray-800 text-gray-100 border-gray-700 p-4"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(text)}
+                        className="absolute top-4 right-4 bg-gray-700 text-gray-100 p-2 rounded hover:bg-gray-600"
+                        title="Copiar al portapapeles"
+                      >
+                        Copiar
+                      </button>
+                      {copied && (
+                        <span className="text-green-500 absolute top-16 right-4">
+                          ¡Copiado!
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="audio-fragments" className="space-y-4">
@@ -353,9 +442,6 @@ export function AudioConverter() {
                 <span className="text-lg mb-2">
                   {/* @ts-ignore */}
                   {audioFile ? audioFile.name : "Haga clic para subir un audio"}
-                </span>
-                <span className="text-sm text-gray-500">
-                  Formatos soportados: wav, MP3, M4A
                 </span>
               </label>
             </div>
