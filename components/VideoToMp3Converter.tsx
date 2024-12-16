@@ -20,7 +20,6 @@ const VideoToMp3Converter = ({ setFragments }) => {
       ffmpeg.on("log", ({ message }) => {
         // @ts-ignore
         messageRef.current.innerHTML = message;
-        console.log(message);
       });
       ffmpeg.on("progress", ({ progress }) => {
         // @ts-ignore

@@ -11,11 +11,13 @@ const openai = new OpenAI({
 
 // @ts-ignore
 export async function POST(req) {
+  const filePath = "tmp/input.m4a";
+
   try {
     const body = await req.json();
     const base64Audio = body.audio;
+
     const audio = Buffer.from(base64Audio, "base64");
-    const filePath = "tmp/input.mp3";
 
     fs.writeFileSync(filePath, audio);
     const readStream = fs.createReadStream(filePath);
@@ -23,13 +25,14 @@ export async function POST(req) {
       file: readStream,
       model: "whisper-1",
     });
+
     // Remove the file after use
     fs.unlinkSync(filePath);
 
-    console.log("data: ", data);
-    return NextResponse.json({ text: "hola mundo" });
-    // return NextResponse.json(data);
+    return NextResponse.json({ text: data.text });
   } catch (error) {
+    fs.unlinkSync(filePath);
+
     console.error("Error processing audio:", error);
     return NextResponse.error();
   }

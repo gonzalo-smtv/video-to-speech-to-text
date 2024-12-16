@@ -108,7 +108,6 @@ export function AudioConverter() {
 
   // @ts-ignore
   const getText = async (base64data) => {
-    console.log("CONVERTING");
     setIsConverting(true);
     try {
       const resp = await fetch("/api/speechToText", {
@@ -120,30 +119,24 @@ export function AudioConverter() {
           audio: base64data,
         }),
       });
-      console.log("resp: ", resp);
+
       const response = await resp.json();
-      console.log("response: ", response);
+
       const { text } = response;
       // @ts-ignore
       setTranscription((prev) => [...prev, text]);
       setIsConverting(false);
     } catch (error) {
       setIsConverting(false);
-      console.log(error);
+      console.error(error);
     }
   };
 
-  useEffect(() => {
-    console.log("transcription: ", transcription);
-  }, [transcription]);
-
   const handleAudioToText = async () => {
     setTranscription([]);
-    // @ts-ignore
-    console.log("audioFile: ", audioFile);
+
     // @ts-ignore
     const audioBlob = new Blob([audioFile], { type: "audio/mp3" });
-    console.log("%c audioBlob: ", "color: orange", audioBlob);
 
     const blob = await blobToBase64(audioBlob);
     await getText(blob);
